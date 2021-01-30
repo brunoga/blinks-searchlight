@@ -5,7 +5,7 @@
 #define GAME_STATE_END_WIN 2
 #define GAME_STATE_END_LOSE 3
 
-#define PLAY_TIME_IN_SECONDS 10
+#define PLAY_TIME_IN_SECONDS 60
 
 typedef byte GameState;
 static GameState game_state_;
