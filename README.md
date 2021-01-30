@@ -1,4 +1,4 @@
-# blinks-searchlight
+# Searchlight
 Global Game Jam 2021 Game  for Blinks by Move38
 
 # How to Play
