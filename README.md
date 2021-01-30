@@ -24,12 +24,12 @@ Your pet bat (yeah, why not?) wandered into your basement that happened to be pi
 
 To do that, you only have your searchlights which is nice because it just happens to be the only thing your pet is affraid of as it hates the strong light they emit.
 
-Use your searchlights to try to corner your pet until it has nowhere else to move and can then be safely captured. The bat is always moving around but it will never intentionally cross the path of your searlight light. If you manage to point it in the direction of your bat, you will be able to see where it is but it will quickly move somewhere else.
+Use your searchlights to try to corner your pet until it has nowhere else to move and can then be safely captured. The bat is always moving around but it will never intentionally cross the path of your searchlight light. If you manage to point it in the direction of your bat, you will be able to see where it is but it will quickly move somewhere else.
 
 To use the searchlight, just connect it to any Blink in the cluster. It will create a path of light all the way accros the cluster, separating it in 2 regions. The bat will be unable to switch regions. Other players can them connect their searchlights to try to narrow down where the bat is and then start cornering it.
 
 # End Game
 
-The game finishes either when you manage to win by cornering the bat so it can not move anywhere else (the cluster will become all blue in this case) or when the time (1 minute) runs out (the cluster will turn all red.
+The game finishes either when you manage to win by cornering the bat so it can not move anywhere else (the cluster will become all blue in this case) or when the time (1 minute) runs out (the cluster will turn all red)f.
 
 After the game ends, just click the cluster to reset it and start again.
