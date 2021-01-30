@@ -14,6 +14,11 @@
 #define WIN_COLOR BLUE
 #define LOSE_COLOR RED
 
+// Uncomment this to enable debug features:
+//
+// - Currently only always show the bat.
+//#define DEBUG
+
 typedef byte GameState;
 static GameState game_state_;
 
@@ -135,12 +140,16 @@ static void render_blink_state() {
           setColor(LIGHT_COLOR);
         }
       } else if (blink_state_.has_bat) {
+#ifdef DEBUG
+        setColor(BAT_COLOR);
+#else
         // This Blink is not lit and has the bat. Render it according to the
         // fade to black timer (i.e. it will start at the given color and fade
         // to off).
         setColor(dim(BAT_COLOR,
                      (MAX_BRIGHTNESS * fade_to_black_timer_.getRemaining()) /
                          FADE_TO_BLACK_TIME_IN_MS));
+#endif
       } else {
         // Not lit and no bat. Render it according to the fade to black timer
         // (i.e. it will start at the given color and fade to off).
