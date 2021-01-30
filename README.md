@@ -16,11 +16,11 @@ Global Game Jam 2021 Game  for Blinks by Move38
 
 The higher the number of Blinks, the more difficult it will be to win. The higher the number of players, the easier it will be to win. It is up to you to find a balance.
 
-After loading the game on your Blinks, they will all switch to yellow (to indicate they are idle). Cluster all Blinks together then remove one Blink per player (you can also play alone by using at least 2 Blinks yourself).
+After loading the game on your Blinks, they will all switch to yellow (this is your basement floor). Cluster all Blinks together then remove one Blink per player (you can also play alone by using at least 2 Blinks yourself).
 
 Single click each of the player Blinks and they will become your searchlight and display a light cone in one of their faces. Then click any Blink in the cluster and all Blinks there will turn off.
 
-Your pet bat (yeah, why not?) wandered into your basement that happened to be pitch black due to a blown fuse. Your (and your friends') task is no locate the bat and capture it obviously without hurting the poor creature.
+Your pet bat (yeah, why not?) wandered into your basement and as luck would have it a fuse blows when you go after it and the basement becomes pitch black. Your (and your friends') task is no locate the bat and capture it obviously without hurting the poor creature.
 
 To do that, you only have your searchlights which is nice because it just happens to be the only thing your pet is affraid of as it hates the strong light they emit.
 
