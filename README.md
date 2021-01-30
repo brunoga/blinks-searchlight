@@ -14,7 +14,7 @@ Global Game Jam 2021 Game  for Blinks by Move38
   </tr>
 </table>
 
-The higher the number of Blinks, the more difficult it will be to win. The higher the number of players, it easier it will be to win. It is up to you to find a balance.
+The higher the number of Blinks, the more difficult it will be to win. The higher the number of players, the easier it will be to win. It is up to you to find a balance.
 
 After loading the game on your Blinks, they will all switch to yellow (to indicate they are idle). Cluster all Blinks together then remove one Blink per player (you can also play alone by using at least 2 Blinks yourself).
 
