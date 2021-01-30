@@ -1,0 +1,9 @@
+In no particular order, here is what need to be done:
+
+- Game idle animation. I was thinking of just using a single white face moving
+  from side to side (searchlight searshing for something).
+- Win/Lose animations. No idea here but I guess it needs to be something flashy.
+- Make the marker fade to white/off when it is hit by the searchlight.
+- Test, test, test to validate gameplay mechanics.
+- Some other stuff I probably forgot.
+
