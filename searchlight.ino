@@ -1,5 +1,7 @@
 #include <blinklib.h>
 
+#include "debug.h"
+
 #define GAME_STATE_IDLE 0
 #define GAME_STATE_PLAY 1
 #define GAME_STATE_END_WIN 2
@@ -9,7 +11,7 @@
 #define FADE_TO_BLACK_TIME_IN_MS 500
 
 #define LIGHT_COLOR WHITE
-#define BAT_COLOR MAGENTA
+#define BAT_COLOR GREEN
 #define FLOOR_COLOR YELLOW
 #define WIN_COLOR BLUE
 #define LOSE_COLOR RED
@@ -17,7 +19,7 @@
 // Uncomment this to enable debug features:
 //
 // - Currently only always show the bat.
-//#define DEBUG
+#define DEBUG
 
 typedef byte GameState;
 static GameState game_state_;
@@ -42,7 +44,8 @@ struct BlinkState {
   bool has_bat;
   bool time_tracker;
   bool game_started;
-  byte move_bat_face;
+  byte src_bat_face;
+  byte dst_bat_face;
 };
 static BlinkState blink_state_;
 
@@ -78,48 +81,149 @@ static bool is_lit() {
 void setup() {
   randomize();
 
-  blink_state_.move_bat_face = FACE_COUNT;
+  blink_state_.src_bat_face = FACE_COUNT;
+  blink_state_.dst_bat_face = FACE_COUNT;
 }
 
-static void move_bat() {
-  // Keep track of the number of possible moves and the faces the bat can
-  // move through.
-  byte possible_move_count = 0;
-  int8_t possible_move_face[FACE_COUNT];
+static byte get_valid_dst_bat_face() {
+  if (blink_state_.src_bat_face == FACE_COUNT) {
+    // No src face so we just started. Pretend the bat entered from face 0.
+    blink_state_.src_bat_face = 0;
+  }
 
-  FOREACH_FACE(face) {
-    if (!isValueReceivedOnFaceExpired(face) && !in_face_state_[face].is_lit) {
-      // Face is not expired and is not lit. Bat can move through there.
-      possible_move_face[possible_move_count] = face;
-      possible_move_count++;
+  // Get the opposite face to the one the bat came from.
+  byte opposite_face = opposite_face_[blink_state_.src_bat_face];
+
+  LOGF("opposite_face : ");
+  LOGLN(opposite_face);
+
+  // Setup forward faces.
+  byte forward_faces[3] = {
+      (byte)(((opposite_face - 1) + FACE_COUNT) % FACE_COUNT),
+      opposite_face,
+      (byte)(((opposite_face + 1) + FACE_COUNT) % FACE_COUNT),
+  };
+
+  LOGF("forward_faces : ");
+  LOG(forward_faces[0]);
+  LOGF(" ");
+  LOG(forward_faces[1]);
+  LOGF(" ");
+  LOGLN(forward_faces[2]);
+
+  // And all other faces (except for the opposite one).
+  byte other_faces[2] = {
+      (byte)(((blink_state_.src_bat_face - 1) + FACE_COUNT) % FACE_COUNT),
+      (byte)(((blink_state_.src_bat_face + 1) + FACE_COUNT) % FACE_COUNT),
+  };
+
+  LOGF("other_faces : ");
+  LOG(other_faces[0]);
+  LOGF(" ");
+  LOGLN(other_faces[1]);
+
+  // Keep track of valid destination faces.
+  byte face_buffer[3];
+  byte face_buffer_count = 0;
+
+  // First try forward faces.
+  for (byte i = 0; i < 3; ++i) {
+    if (!isValueReceivedOnFaceExpired(forward_faces[i])) {
+      if (forward_faces[i] != opposite_face &&
+          in_face_state_[forward_faces[i]].is_lit) {
+        LOGF("Blink at face ");
+        LOG(forward_faces[i]);
+        LOGFLN(" is lit");
+        continue;
+      }
+
+      face_buffer[face_buffer_count] = forward_faces[i];
+      face_buffer_count++;
+    } else {
+      LOGF("Face ");
+      LOG(forward_faces[i]);
+      LOGFLN(" not connected");
     }
   }
 
-  if (possible_move_count == 0) {
+  if (face_buffer_count == 0) {
+    LOGFLN("Forward faces not valid");
+
+    // Now try any other faces that are not the one we just arrived from.
+    for (byte i = 0; i < 2; ++i) {
+      if (isValueReceivedOnFaceExpired(other_faces[i]) ||
+          in_face_state_[other_faces[i]].is_lit) {
+        LOGF("Face ");
+        LOG(other_faces[i]);
+        LOGFLN(" not connected");
+        continue;
+      }
+
+      face_buffer[face_buffer_count] = other_faces[i];
+      face_buffer_count++;
+    }
+
+    if (face_buffer_count == 0) {
+      LOGFLN("Other faces not valid");
+
+      // Finally try the source face.
+      if (isValueReceivedOnFaceExpired(blink_state_.src_bat_face) ||
+          in_face_state_[blink_state_.src_bat_face].is_lit) {
+        LOGF("Face ");
+        LOG(blink_state_.src_bat_face);
+        LOGFLN(" not connected");
+        return FACE_COUNT;
+      }
+
+      face_buffer[face_buffer_count] = blink_state_.src_bat_face;
+      face_buffer_count++;
+    }
+  }
+
+  return face_buffer[random(face_buffer_count - 1)];
+}
+
+static void move_bat() {
+  // Try to find a valid sestination face.
+  blink_state_.dst_bat_face = get_valid_dst_bat_face();
+
+  LOGF("src_bat_face : ");
+  LOGLN(blink_state_.src_bat_face);
+  LOGF("dst_bat_face : ");
+  LOGLN(blink_state_.dst_bat_face);
+
+  if (blink_state_.dst_bat_face == FACE_COUNT) {
     // The bat can not be moved anywhere. Game over.
     set_game_state(GAME_STATE_END_WIN);
 
     return;
   }
+}
 
-  // Pick a random face from the ones we can move to.
-  byte move_bat_face = possible_move_face[random(possible_move_count - 1)];
+static byte idle_searchlight_face_ = 0;
+static Timer idle_searchlight_timer_;
 
-  // Send the bat through there.
-  out_face_state_[move_bat_face].send_bat = true;
+static void render_idle_animation() {
+  if (!idle_searchlight_timer_.isExpired()) {
+    return;
+  }
 
-  // And remember the face.
-  blink_state_.move_bat_face = move_bat_face;
+  idle_searchlight_timer_.set(200);
+
+  int8_t move = random(2) - 1;
+
+  idle_searchlight_face_ =
+      (((idle_searchlight_face_ + move) + FACE_COUNT) % FACE_COUNT);
+
+  setColor(OFF);
+  setColorOnFace(WHITE, idle_searchlight_face_);
 }
 
 static void render_blink_state() {
   switch (get_game_state()) {
     case GAME_STATE_IDLE:
-      // When idle, just render the Blink as the floor.
-      //
-      // TODO(bga): It might be nice to animate the "flashlight" face as if it
-      // was searching for something.
-      setColor(FLOOR_COLOR);
+      // Render idle animation.
+      render_idle_animation();
       break;
     case GAME_STATE_PLAY:
       // Play state. Things are a bit more complex now.
@@ -132,8 +236,8 @@ static void render_blink_state() {
           // And set face 0 to white.
           setColorOnFace(WHITE, 0);
         } else if (blink_state_.has_bat) {
-          // It has the bat and it was caught by a flashlight. Render it as the
-          // bat.
+          // It has the bat and it was caught by a flashlight. Render it as
+          // the bat.
           setColor(BAT_COLOR);
         } else {
           // Just set the color to white to show we are lit.
@@ -164,6 +268,11 @@ static void render_blink_state() {
         // If we have the bat, render it so all players can see where it
         // was.
         setColor(BAT_COLOR);
+
+        if (blink_state_.is_player) {
+          // Render flashlight to insicate the player catch the bat.
+          setColorOnFace(WHITE, 0);
+        }
       } else {
         // No bat. Render as the win color.
         setColor(WIN_COLOR);
@@ -187,6 +296,13 @@ static void render_blink_state() {
     out_face_state_[face].game_state = get_game_state();
     out_face_state_[face].has_bat = blink_state_.has_bat;
     out_face_state_[face].is_lit = is_lit();
+    if (face == blink_state_.dst_bat_face) {
+      LOGLN(blink_state_.dst_bat_face);
+
+      out_face_state_[face].send_bat = true;
+    } else {
+      out_face_state_[face].send_bat = false;
+    }
 
     setValueSentOnFace(out_face_state_[face].as_byte, face);
   }
@@ -198,7 +314,8 @@ static void idle_loop() {
   blink_state_.is_player = false;
   blink_state_.time_tracker = false;
   blink_state_.game_started = true;
-  blink_state_.move_bat_face = FACE_COUNT;
+  blink_state_.src_bat_face = FACE_COUNT;
+  blink_state_.dst_bat_face = FACE_COUNT;
 
   if (buttonSingleClicked() && !hasWoken()) {
     // The button was single-clicked and it was not a wake-up click.
@@ -220,6 +337,13 @@ static void idle_loop() {
 }
 
 static void play_player_loop() {
+  if (blink_state_.has_bat) {
+    // Bat ran head-on into us, so we were able to catch it.
+    set_game_state(GAME_STATE_END_WIN);
+
+    return;
+  }
+
   // We are a player piece, so we always send light on our face 0.
   out_face_state_[0].send_light = true;
 
@@ -236,7 +360,7 @@ static void play_board_loop() {
     blink_state_.game_started = false;
   }
 
-  if (blink_state_.has_bat && blink_state_.move_bat_face == FACE_COUNT) {
+  if (blink_state_.has_bat && blink_state_.dst_bat_face == FACE_COUNT) {
     // We hold the bat and we are not transferring it yet. Check if
     // whatever Blink that send it to us still thinks it holds it.
     FOREACH_FACE(face) {
@@ -288,11 +412,13 @@ static void process_neighbors() {
       }
     }
 
-    if (blink_state_.move_bat_face == face && in_face_state_[face].has_bat) {
+    if (blink_state_.dst_bat_face == face && in_face_state_[face].has_bat) {
       // We got confirmation that the bat transferred to the other Blink.
       // Complete the move.
       blink_state_.has_bat = false;
-      blink_state_.move_bat_face = FACE_COUNT;
+
+      blink_state_.src_bat_face = FACE_COUNT;
+      blink_state_.dst_bat_face = FACE_COUNT;
 
       out_face_state_[face].send_bat = false;
     }
@@ -300,6 +426,9 @@ static void process_neighbors() {
     if (in_face_state.send_bat && !blink_state_.has_bat) {
       // This neighbor Blink is sending us the bat. Accept it.
       blink_state_.has_bat = true;
+      LOGF("Got bat on face ");
+      LOGLN(face);
+      blink_state_.src_bat_face = face;
     }
 
     // If this face is sending light to us, we propagate it to the opposite
