@@ -15,9 +15,8 @@
 #define LOSE_COLOR RED
 
 // Uncomment this to enable debug features:
-//
-// - Currently only always show the bat.
-//#define DEBUG
+//#define DEBUG_ALWAYS_SHOW_BAT  // Always see the bat
+//#define DEBUG_DISABLE_BAT      // To test searchlight logic
 
 typedef byte GameState;
 static GameState game_state_;
@@ -29,7 +28,7 @@ union FaceState {
     bool is_lit : 1;
     bool send_bat : 1;
     bool has_bat : 1;
-    byte reserved : 2;
+    byte reserved : 2;  // Reserved by Blinklib.
   };
 
   byte as_byte;
@@ -165,6 +164,8 @@ static byte idle_searchlight_face_ = 0;
 static Timer idle_searchlight_timer_;
 
 static void render_idle_animation() {
+  setColorOnFace(WHITE, idle_searchlight_face_);
+
   if (!idle_searchlight_timer_.isExpired()) {
     return;
   }
@@ -175,12 +176,34 @@ static void render_idle_animation() {
 
   idle_searchlight_face_ =
       (((idle_searchlight_face_ + move) + FACE_COUNT) % FACE_COUNT);
+}
 
-  setColor(OFF);
-  setColorOnFace(WHITE, idle_searchlight_face_);
+static bool bat_wing_position_;
+static Timer bat_wing_position_timer_;
+
+static void render_bat_animation(Color color) {
+  // Render bat wings based on the direction the bat came from and the current
+  // wing position.
+  setColorOnFace(
+      color, (blink_state_.src_bat_face + 1 + bat_wing_position_) % FACE_COUNT);
+  setColorOnFace(color, (blink_state_.src_bat_face + (FACE_COUNT - 1) -
+                         bat_wing_position_) %
+                            FACE_COUNT);
+
+  if (!bat_wing_position_timer_.isExpired()) {
+    return;
+  }
+
+  bat_wing_position_timer_.set(200);
+
+  // Change wing position.
+  bat_wing_position_ = !bat_wing_position_;
 }
 
 static void render_blink_state() {
+  // Reset colors before starting to render.
+  setColor(OFF);
+
   switch (get_game_state()) {
     case GAME_STATE_IDLE:
       // Render idle animation.
@@ -190,50 +213,58 @@ static void render_blink_state() {
       // Play state. Things are a bit more complex now.
       if (is_lit()) {
         // This Blink is lit.
-        if (blink_state_.is_player) {
-          // It is a player Blink. Reset all faces to off.
-          setColor(OFF);
 
-          // And set face 0 to white.
+        if (blink_state_.is_player) {
+          // It is a player Blink. Set face 0 to white.
           setColorOnFace(WHITE, 0);
-        } else if (blink_state_.has_bat) {
+
+          break;
+        }
+
+        // Default state is light color.
+        setColor(LIGHT_COLOR);
+
+        if (blink_state_.has_bat) {
           // It has the bat and it was caught by a flashlight. Render it as
           // the bat.
-          setColor(BAT_COLOR);
-        } else {
-          // Just set the color to white to show we are lit.
-          setColor(LIGHT_COLOR);
+          render_bat_animation(BAT_COLOR);
         }
       } else if (blink_state_.has_bat) {
-#ifdef DEBUG
-        setColor(BAT_COLOR);
+#ifdef DEBUG_ALWAYS_SHOW_BAT
+        render_bat_animation(BAT_COLOR);
 #else
         // This Blink is not lit and has the bat. Render it according to the
         // fade to black timer (i.e. it will start at the given color and fade
         // to off).
-        setColor(dim(BAT_COLOR,
-                     (MAX_BRIGHTNESS * fade_to_black_timer_.getRemaining()) /
-                         FADE_TO_BLACK_TIME_IN_MS));
+        Color bat_color;
+        if (blink_state_.src_bat_face != FACE_COUNT &&
+            in_face_state_[blink_state_.src_bat_face].is_lit) {
+          // Bat came form a lit face. Git a hint that it came here.
+          bat_color = dim(BAT_COLOR, 50);
+        } else {
+          bat_color = dim(BAT_COLOR, (MAX_BRIGHTNESS *
+                                      fade_to_black_timer_.getRemaining()) /
+                                         FADE_TO_BLACK_TIME_IN_MS);
+        }
+
+        render_bat_animation(bat_color);
 #endif
       } else {
-        // Not lit and no bat. Render it according to the fade to black timer
-        // (i.e. it will start at the given color and fade to off).
-        setColor(dim(FLOOR_COLOR,
-                     (MAX_BRIGHTNESS * fade_to_black_timer_.getRemaining()) /
-                         FADE_TO_BLACK_TIME_IN_MS));
+        // Nothing special here. Pitch black.
+        setColor(OFF);
       }
       break;
     case GAME_STATE_END_WIN:
       // We won!
       if (blink_state_.has_bat) {
-        // If we have the bat, render it so all players can see where it
-        // was.
-        setColor(BAT_COLOR);
-
         if (blink_state_.is_player) {
-          // Render flashlight to insicate the player catch the bat.
+          // Render flashlight to indicate the player has the bat.
           setColorOnFace(WHITE, 0);
         }
+
+        // If we have the bat, render it so all players can see where it
+        // was.
+        render_bat_animation(BAT_COLOR);
       } else {
         // No bat. Render as the win color.
         setColor(WIN_COLOR);
@@ -241,13 +272,12 @@ static void render_blink_state() {
       break;
     case GAME_STATE_END_LOSE:
       // We lost.
+      setColor(LOSE_COLOR);
+
       if (blink_state_.has_bat) {
         // If we have the bat, render it so all players can see where it
         // was.
-        setColor(BAT_COLOR);
-      } else {
-        // No bat. Render as the lose color.
-        setColor(LOSE_COLOR);
+        render_bat_animation(BAT_COLOR);
       }
       break;
   }
@@ -282,8 +312,10 @@ static void idle_loop() {
       // We are alone, so we are a player Blink now.
       blink_state_.is_player = true;
     } else {
+#ifndef DEBUG_DISABLE_BAT
       // We are not alone, so we are a piece of the board that has the bat.
       blink_state_.has_bat = true;
+#endif
 
       // And we will also keep track of the timer.
       game_play_timer_.set(1000L * PLAY_TIME_IN_SECONDS);
