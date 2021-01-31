@@ -1,7 +1,5 @@
 #include <blinklib.h>
 
-#include "debug.h"
-
 #define GAME_STATE_IDLE 0
 #define GAME_STATE_PLAY 1
 #define GAME_STATE_END_WIN 2
@@ -19,7 +17,7 @@
 // Uncomment this to enable debug features:
 //
 // - Currently only always show the bat.
-#define DEBUG
+//#define DEBUG
 
 typedef byte GameState;
 static GameState game_state_;
@@ -94,9 +92,6 @@ static byte get_valid_dst_bat_face() {
   // Get the opposite face to the one the bat came from.
   byte opposite_face = opposite_face_[blink_state_.src_bat_face];
 
-  LOGF("opposite_face : ");
-  LOGLN(opposite_face);
-
   // Setup forward faces.
   byte forward_faces[3] = {
       (byte)(((opposite_face - 1) + FACE_COUNT) % FACE_COUNT),
@@ -104,23 +99,11 @@ static byte get_valid_dst_bat_face() {
       (byte)(((opposite_face + 1) + FACE_COUNT) % FACE_COUNT),
   };
 
-  LOGF("forward_faces : ");
-  LOG(forward_faces[0]);
-  LOGF(" ");
-  LOG(forward_faces[1]);
-  LOGF(" ");
-  LOGLN(forward_faces[2]);
-
   // And all other faces (except for the opposite one).
   byte other_faces[2] = {
       (byte)(((blink_state_.src_bat_face - 1) + FACE_COUNT) % FACE_COUNT),
       (byte)(((blink_state_.src_bat_face + 1) + FACE_COUNT) % FACE_COUNT),
   };
-
-  LOGF("other_faces : ");
-  LOG(other_faces[0]);
-  LOGF(" ");
-  LOGLN(other_faces[1]);
 
   // Keep track of valid destination faces.
   byte face_buffer[3];
@@ -131,31 +114,19 @@ static byte get_valid_dst_bat_face() {
     if (!isValueReceivedOnFaceExpired(forward_faces[i])) {
       if (forward_faces[i] != opposite_face &&
           in_face_state_[forward_faces[i]].is_lit) {
-        LOGF("Blink at face ");
-        LOG(forward_faces[i]);
-        LOGFLN(" is lit");
         continue;
       }
 
       face_buffer[face_buffer_count] = forward_faces[i];
       face_buffer_count++;
-    } else {
-      LOGF("Face ");
-      LOG(forward_faces[i]);
-      LOGFLN(" not connected");
     }
   }
 
   if (face_buffer_count == 0) {
-    LOGFLN("Forward faces not valid");
-
     // Now try any other faces that are not the one we just arrived from.
     for (byte i = 0; i < 2; ++i) {
       if (isValueReceivedOnFaceExpired(other_faces[i]) ||
           in_face_state_[other_faces[i]].is_lit) {
-        LOGF("Face ");
-        LOG(other_faces[i]);
-        LOGFLN(" not connected");
         continue;
       }
 
@@ -164,14 +135,9 @@ static byte get_valid_dst_bat_face() {
     }
 
     if (face_buffer_count == 0) {
-      LOGFLN("Other faces not valid");
-
       // Finally try the source face.
       if (isValueReceivedOnFaceExpired(blink_state_.src_bat_face) ||
           in_face_state_[blink_state_.src_bat_face].is_lit) {
-        LOGF("Face ");
-        LOG(blink_state_.src_bat_face);
-        LOGFLN(" not connected");
         return FACE_COUNT;
       }
 
@@ -186,11 +152,6 @@ static byte get_valid_dst_bat_face() {
 static void move_bat() {
   // Try to find a valid sestination face.
   blink_state_.dst_bat_face = get_valid_dst_bat_face();
-
-  LOGF("src_bat_face : ");
-  LOGLN(blink_state_.src_bat_face);
-  LOGF("dst_bat_face : ");
-  LOGLN(blink_state_.dst_bat_face);
 
   if (blink_state_.dst_bat_face == FACE_COUNT) {
     // The bat can not be moved anywhere. Game over.
@@ -297,8 +258,6 @@ static void render_blink_state() {
     out_face_state_[face].has_bat = blink_state_.has_bat;
     out_face_state_[face].is_lit = is_lit();
     if (face == blink_state_.dst_bat_face) {
-      LOGLN(blink_state_.dst_bat_face);
-
       out_face_state_[face].send_bat = true;
     } else {
       out_face_state_[face].send_bat = false;
@@ -426,8 +385,6 @@ static void process_neighbors() {
     if (in_face_state.send_bat && !blink_state_.has_bat) {
       // This neighbor Blink is sending us the bat. Accept it.
       blink_state_.has_bat = true;
-      LOGF("Got bat on face ");
-      LOGLN(face);
       blink_state_.src_bat_face = face;
     }
 
