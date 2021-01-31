@@ -10,7 +10,6 @@
 
 #define LIGHT_COLOR WHITE
 #define BAT_COLOR GREEN
-#define FLOOR_COLOR YELLOW
 #define WIN_COLOR BLUE
 #define LOSE_COLOR RED
 
